@@ -38,10 +38,17 @@ function open(): Connection {
     const sql = postgres(url!, {
       // Supabase's transaction pooler (port 6543) does not support prepared statements.
       prepare: false,
+      // Never pipeline several queries down one connection: through Supabase's pooler a
+      // pipelined query can wait forever. Extra queries wait for a free connection instead.
+      max_pipeline: 1,
+      // A page runs up to ~8 queries in parallel (the student dashboard).
+      max: 8,
       ssl: local ? false : "require",
-      max: 5,
       idle_timeout: 20,
       connect_timeout: 10,
+      // Backstop: if a connection goes silent (e.g. a serverless instance was frozen),
+      // fail the query in seconds and replace the connection instead of hanging for minutes.
+      query_timeout: 20,
     });
     const db = drizzlePostgres(sql, { schema });
     return { db, migrate: () => migratePostgres(db, MIGRATIONS), close: () => sql.end({ timeout: 5 }) };
