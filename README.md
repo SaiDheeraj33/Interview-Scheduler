@@ -14,6 +14,9 @@ npm install
 npm run dev        # creates and seeds the database on first run, then serves http://localhost:3000
 ```
 
+No database server is needed locally: without `DATABASE_URL` the app runs an embedded
+Postgres (PGlite) stored in `./data`. Stop the dev server before running `npm run db:seed`.
+
 Open the home page and choose a persona. Each student is in a different state of the journey.
 Demo times are relative to when the data was seeded; use **Reset demo data** on the home page
 (or `npm run db:seed`) to refresh them.
@@ -22,7 +25,7 @@ Demo times are relative to when the data was seeded; use **Reset demo data** on 
 |---|---|
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Apply migrations (seeding an empty database), production build, and server |
-| `npm test` | State machine rules and database double-booking tests |
+| `npm test` | State machine and rubric rules, plus database double-booking tests on Postgres |
 | `npm run typecheck` | TypeScript check |
 | `npm run db:seed` | Apply migrations and reload demo data |
 | `npm run db:generate` | Generate a migration after editing `src/db/schema.ts` |
@@ -64,16 +67,16 @@ drizzle/        SQL migrations
 ```
 
 Stack: Next.js 16 (App Router, Server Actions), React 19, TypeScript, Tailwind CSS 4,
-Drizzle ORM on SQLite/libSQL, Zod, Vitest.
+Drizzle ORM on Postgres (Supabase in production, embedded PGlite locally and in tests), Zod, Vitest.
 
 ## Deploy
 
-The app runs anywhere Node runs; these steps are for Vercel with a free Turso database
-(a local SQLite file does not survive on serverless hosting).
+The app runs anywhere Node runs; these steps are for Vercel with a Supabase Postgres database.
 
-1. Create a Turso database and copy its URL (`libsql://...`) and an auth token.
+1. In Supabase, open the project → **Connect** → **Transaction pooler** and copy the
+   connection string (port 6543), with the database password filled in.
 2. Import this repository in Vercel (framework preset: Next.js, no other settings).
-3. Add the environment variables `DATABASE_URL` and `DATABASE_AUTH_TOKEN`, then deploy.
+3. Add the environment variable `DATABASE_URL` with that connection string, then deploy.
 
 `npm run build` applies pending migrations and seeds the database if it is empty, so each
 push updates the schema without manual steps. Demo times are relative to seeding: use
@@ -86,6 +89,8 @@ push updates the schema without manual steps. Demo times are relative to seeding
   demo-only and must be removed, along with `/live` and `/call/[id]` (a stand-in for the
   video call; production stores the real meeting link in `bookings.meeting_url`). `getNow()` in `src/server/clock.ts`
   becomes `Date.now()`.
-- Point `DATABASE_URL` at a hosted libSQL/Turso database (see `.env.example`).
+- The server connects to Postgres directly as the table owner. Supabase's Data API is not
+  used; row level security with no policies (migration `0001`) keeps it closed. Adding
+  client-side Supabase access later means writing policies first.
 - Deliver `notifications` rows by email or WhatsApp as well as in-app.
 - Eligibility arrives from the contest system; here it is seeded.

@@ -57,7 +57,7 @@ all times IST. Students pick a **time, not an interviewer**; the least-loaded fr
 
 ## 3. Data model
 
-SQLite (libSQL) with Drizzle; timestamps are UTC milliseconds.
+Postgres (Supabase) with Drizzle; timestamps are `timestamptz`, handled as UTC milliseconds in code.
 
 | Table | Key fields | Notes |
 |---|---|---|
