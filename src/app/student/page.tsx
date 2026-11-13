@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Countdown, LiveRefresh } from "@/components/client";
 import { JourneyCard, StandingStrip } from "@/components/journey";
+import { PrepPack } from "@/components/prep-pack";
 import { AppShell } from "@/components/shell";
 import { CancelBookingButton } from "@/components/student-actions";
 import { Avatar, buttonClass, Card, EmptyState } from "@/components/ui";
@@ -158,7 +159,7 @@ export default async function StudentHome() {
               Clear the skill levels for a Track Badge in GRIT Contests. Your interview shows up here the moment you qualify.
             </EmptyState>
           )}
-          {journeys.map((j, i) => (
+          {journeys.map((j, i) => [
             <JourneyCard
               key={j.badge.id}
               hero={i === 0}
@@ -170,8 +171,9 @@ export default async function StudentHome() {
               attemptCount={j.attemptCount}
               feature={<Feature j={j} clock={{ now, offset }} />}
               actions={<Actions j={j} now={now} />}
-            />
-          ))}
+            />,
+            j.prep && <PrepPack key={`${j.badge.id}-prep`} pack={j.prep} badgeName={`${j.badge.tier} · ${j.badge.track}`} />,
+          ])}
         </div>
 
         <aside className="order-1 space-y-6 lg:order-2">

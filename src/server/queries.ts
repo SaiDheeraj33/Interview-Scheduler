@@ -6,6 +6,7 @@ import { STORY_STUDENT_IDS } from "@/db/seed-data";
 import type { Badge, Booking, Candidacy, EventRow, NotificationRow, User } from "@/db/schema";
 import { checkCanChange, checkCanReschedule, deriveState, type JourneyState } from "@/domain/journey";
 import { MS, POLICY } from "@/domain/policy";
+import { prepPackFor, type PrepPack } from "@/domain/prep";
 import { journeyCopy, type JourneyCopy } from "@/lib/messages";
 
 export interface Requirement {
@@ -26,6 +27,8 @@ export interface JourneyView {
   bookableFrom: number | null;
   attemptCount: number;
   events: EventRow[];
+  /** What to prepare, while there is still time to. Null when not relevant. */
+  prep: PrepPack | null;
 }
 
 export interface Standing {
@@ -66,9 +69,14 @@ export async function getStudentHome(student: User, now: number) {
     db.select().from(notifications).where(eq(notifications.userId, student.id)).orderBy(desc(notifications.createdAt)).limit(12),
     getStandings(),
   ]);
-  const evts = cands.length
-    ? await db.select().from(events).where(inArray(events.candidacyId, cands.map((c) => c.id))).orderBy(desc(events.createdAt))
-    : [];
+  // The most recent completed attempt per badge, and its scorecard (for the prep pack's focus areas).
+  const lastDone = new Map<string, Booking>();
+  for (const k of bks) if (k.b.status === "completed" && !lastDone.has(k.b.candidacyId)) lastDone.set(k.b.candidacyId, k.b);
+  const lastIds = [...lastDone.values()].map((b) => b.id);
+  const [evts, lastScores] = await Promise.all([
+    cands.length ? db.select().from(events).where(inArray(events.candidacyId, cands.map((c) => c.id))).orderBy(desc(events.createdAt)) : [],
+    lastIds.length ? db.select().from(bookingScores).where(inArray(bookingScores.bookingId, lastIds)) : [],
+  ]);
 
   const journeys: JourneyView[] = [];
   for (const badge of allBadges) {
@@ -96,6 +104,18 @@ export async function getStudentHome(student: User, now: number) {
       bookableFrom: cand?.bookableFrom ?? null,
       attemptCount: cand?.attemptCount ?? 0,
       events: evts.filter((e) => e.candidacyId === cand?.id),
+      prep: prepPackFor({
+        state,
+        requirements,
+        last: last
+          ? {
+              outcome: last.b.outcome,
+              feedback: last.b.studentFeedback,
+              startsAt: last.b.startsAt,
+              scores: Object.fromEntries(lastScores.filter((r) => r.bookingId === last.b.id).map((r) => [r.criterion, r.score])),
+            }
+          : null,
+      }),
       copy: journeyCopy(state, {
         badge,
         now,

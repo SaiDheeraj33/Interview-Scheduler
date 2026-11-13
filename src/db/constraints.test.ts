@@ -57,7 +57,8 @@ beforeAll(async () => {
     { id: "slot1", interviewerId: "int", startsAt: START, endsAt: START + 1_800_000, createdAt: START },
     { id: "slot2", interviewerId: "int", startsAt: START + 1_800_000, endsAt: START + 3_600_000, createdAt: START },
   ]);
-});
+  // Starting an embedded Postgres (WebAssembly) and migrating it can exceed the default 10s on a busy machine.
+}, 60_000);
 
 afterAll(() => client.close());
 
