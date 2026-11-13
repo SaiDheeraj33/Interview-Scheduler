@@ -78,6 +78,10 @@ The app runs anywhere Node runs; these steps are for Vercel with a Supabase Post
 2. Import this repository in Vercel (framework preset: Next.js, no other settings).
 3. Add the environment variable `DATABASE_URL` with that connection string, then deploy.
 
+`vercel.json` pins the server functions to Mumbai (`bom1`), next to the database in
+`ap-south-1`; a database page makes several queries, so keeping both in one region
+matters more than anything else for speed. Change both together if you move regions.
+
 `npm run build` applies pending migrations and seeds the database if it is empty, so each
 push updates the schema without manual steps. Demo times are relative to seeding: use
 **Reset demo data** on the home page to bring them back to the present.
