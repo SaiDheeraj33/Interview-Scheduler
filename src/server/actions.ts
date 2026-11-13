@@ -4,7 +4,7 @@
  * Every write in the feature. Each action follows the same four steps:
  *   1. validate the input (never trust the client)
  *   2. identify the caller and check their role and ownership
- *   3. re-read the rows inside one immediate transaction and apply the pure
+ *   3. re-read the rows inside one serializable transaction and apply the pure
  *      rules from src/domain against the fresh state
  *   4. write the change, an audit event and the student's message together
  * The UI's own checks are a courtesy; these are the ones that count.
@@ -57,13 +57,19 @@ async function caller(...roles: User["role"][]): Promise<User | null> {
   return user && roles.includes(user.role) ? user : null;
 }
 
-/** SQLite allows one writer at a time; `immediate` takes the write lock up front so a read can't go stale mid-transaction. */
+/**
+ * Serializable isolation: each action behaves as if it ran alone, so a check made on rows
+ * read inside the transaction cannot be invalidated by a concurrent write. When Postgres
+ * detects a conflict it aborts one side (40001, or 40P01 for a deadlock); that side retries
+ * against the fresh state.
+ */
+const RETRYABLE = /\b(40001|40P01)\b/;
 async function write<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await db.transaction(fn, { behavior: "immediate" });
+      return await db.transaction(fn, { isolationLevel: "serializable" });
     } catch (err) {
-      if (attempt < 3 && errorText(err).includes("SQLITE_BUSY")) {
+      if (attempt < 4 && RETRYABLE.test(errorText(err))) {
         await new Promise((r) => setTimeout(r, 40 * (attempt + 1)));
         continue;
       }
@@ -81,7 +87,8 @@ function errorText(err: unknown): string {
   }
   return parts.join(" ");
 }
-const isUniqueViolation = (err: unknown) => /UNIQUE constraint failed|SQLITE_CONSTRAINT/.test(errorText(err));
+/** Postgres unique_violation: a partial unique index refused a second live booking. */
+const isUniqueViolation = (err: unknown) => /\b23505\b/.test(errorText(err));
 
 function refresh() {
   revalidatePath("/", "layout");

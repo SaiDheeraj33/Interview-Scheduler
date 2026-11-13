@@ -7,7 +7,7 @@ import { MS, POLICY } from "@/domain/policy";
 import { criteriaFor, suggestOutcome, type Criterion } from "@/domain/rubric";
 import { notify, type Message } from "@/lib/messages";
 import { istHour, startOfDay } from "@/lib/time";
-import type { Db } from "./client";
+import type { Db, Tx } from "./client";
 import * as s from "./schema";
 
 const SLOT = POLICY.slotMinutes * MS.MINUTE;
@@ -110,7 +110,12 @@ const HISTORY: [string, "pass" | "fail", boolean?][] = [
   ["int-priya", "pass"], ["int-priya", "pass"], ["int-priya", "pass"], ["int-priya", "pass"], ["int-priya", "fail"], ["int-priya", "fail"], ["int-priya", "fail"],
 ];
 
+/** Replace all data with the demo set, atomically: readers see the old data or the new, never half. */
 export async function seedDemo(db: Db, now = Date.now()) {
+  return db.transaction((tx) => fill(tx, now));
+}
+
+async function fill(db: Tx, now: number) {
   // Children first, so foreign keys stay satisfied.
   for (const table of [s.notifications, s.events, s.bookingScores, s.bookings, s.slots, s.candidacies, s.skillClearances, s.badgeRequirements, s.badges, s.users])
     await db.delete(table);

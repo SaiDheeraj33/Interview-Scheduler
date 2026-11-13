@@ -5,7 +5,7 @@
  * Like a real meeting link, anyone with the URL can open it; it shows names only.
  */
 import { eq } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { alias } from "drizzle-orm/pg-core";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CallRoom } from "@/components/call-room";

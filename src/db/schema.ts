@@ -1,11 +1,18 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { boolean, customType, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 import type { CandidacyStatus, Outcome } from "@/domain/journey";
 
-/** All timestamps are UTC epoch milliseconds. Display is always IST. */
-const ts = (name: string) => integer(name);
+/**
+ * Stored as `timestamptz` so the data reads naturally in SQL and the Supabase table editor;
+ * the application works in UTC epoch milliseconds throughout. Display is always IST.
+ */
+const ts = customType<{ data: number; driverData: string | Date }>({
+  dataType: () => "timestamp with time zone",
+  toDriver: (ms) => new Date(ms).toISOString(),
+  fromDriver: (value) => (value instanceof Date ? value : new Date(value)).getTime(),
+});
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   role: text("role").$type<"student" | "interviewer" | "admin">().notNull(),
   name: text("name").notNull(),
@@ -15,14 +22,14 @@ export const users = sqliteTable("users", {
   baseMiles: integer("base_miles").notNull().default(0),
 });
 
-export const badges = sqliteTable("badges", {
+export const badges = pgTable("badges", {
   id: text("id").primaryKey(),
   track: text("track").notNull(),
   tier: text("tier").notNull(),
   bonusMiles: integer("bonus_miles").notNull(),
 });
 
-export const badgeRequirements = sqliteTable(
+export const badgeRequirements = pgTable(
   "badge_requirements",
   {
     badgeId: text("badge_id").notNull().references(() => badges.id),
@@ -33,7 +40,7 @@ export const badgeRequirements = sqliteTable(
 );
 
 /** Owned by the contest system in production; mirrored here so eligibility can be shown. */
-export const skillClearances = sqliteTable(
+export const skillClearances = pgTable(
   "skill_clearances",
   {
     studentId: text("student_id").notNull().references(() => users.id),
@@ -46,7 +53,7 @@ export const skillClearances = sqliteTable(
 );
 
 /** One row per student per badge: the interview journey. Created when the last skill is cleared. */
-export const candidacies = sqliteTable(
+export const candidacies = pgTable(
   "candidacies",
   {
     id: text("id").primaryKey(),
@@ -69,6 +76,7 @@ export const candidacies = sqliteTable(
   (t) => [
     uniqueIndex("candidacies_student_badge").on(t.studentId, t.badgeId),
     index("candidacies_status").on(t.status),
+    index("candidacies_badge").on(t.badgeId),
   ],
 );
 
@@ -77,14 +85,14 @@ export const candidacies = sqliteTable(
  * Bookable when it is active and no scheduled booking points at it.
  * Withdrawn slots are deactivated, not deleted, so past bookings keep their reference.
  */
-export const slots = sqliteTable(
+export const slots = pgTable(
   "slots",
   {
     id: text("id").primaryKey(),
     interviewerId: text("interviewer_id").notNull().references(() => users.id),
     startsAt: ts("starts_at").notNull(),
     endsAt: ts("ends_at").notNull(),
-    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    active: boolean("active").notNull().default(true),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
@@ -93,7 +101,7 @@ export const slots = sqliteTable(
   ],
 );
 
-export const bookings = sqliteTable(
+export const bookings = pgTable(
   "bookings",
   {
     id: text("id").primaryKey(),
@@ -124,6 +132,10 @@ export const bookings = sqliteTable(
     uniqueIndex("bookings_one_live_per_candidacy").on(t.candidacyId).where(sql`status = 'scheduled'`),
     index("bookings_interviewer_start").on(t.interviewerId, t.startsAt),
     index("bookings_student").on(t.studentId),
+    // Foreign keys get their own index so joins and deletes never scan whole tables.
+    index("bookings_slot").on(t.slotId),
+    index("bookings_candidacy").on(t.candidacyId),
+    index("bookings_recorded_by").on(t.recordedBy),
   ],
 );
 
@@ -131,7 +143,7 @@ export const bookings = sqliteTable(
  * The interviewer's scorecard for one interview: one row per rubric criterion.
  * The label is copied so the record still reads correctly if the rubric changes later.
  */
-export const bookingScores = sqliteTable(
+export const bookingScores = pgTable(
   "booking_scores",
   {
     bookingId: text("booking_id").notNull().references(() => bookings.id),
@@ -143,7 +155,7 @@ export const bookingScores = sqliteTable(
 );
 
 /** Append-only audit trail. Nothing here is ever updated or deleted. */
-export const events = sqliteTable(
+export const events = pgTable(
   "events",
   {
     id: text("id").primaryKey(),
@@ -153,7 +165,7 @@ export const events = sqliteTable(
     summary: text("summary").notNull(),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("events_candidacy").on(t.candidacyId, t.createdAt)],
+  (t) => [index("events_candidacy").on(t.candidacyId, t.createdAt), index("events_actor").on(t.actorId)],
 );
 
 export type EventType =
@@ -172,7 +184,7 @@ export type EventType =
   | "nudged";
 
 /** In-app messages. In production the same rows fan out to email / WhatsApp. */
-export const notifications = sqliteTable(
+export const notifications = pgTable(
   "notifications",
   {
     id: text("id").primaryKey(),
@@ -183,7 +195,7 @@ export const notifications = sqliteTable(
     body: text("body").notNull(),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("notifications_user").on(t.userId, t.createdAt)],
+  (t) => [index("notifications_user").on(t.userId, t.createdAt), index("notifications_candidacy").on(t.candidacyId)],
 );
 
 export type User = typeof users.$inferSelect;

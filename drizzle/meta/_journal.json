@@ -1,19 +1,19 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1794473088244,
-      "tag": "0000_empty_may_parker",
+      "version": "7",
+      "when": 1794570635704,
+      "tag": "0000_init",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1794549850424,
-      "tag": "0001_known_green_goblin",
+      "version": "7",
+      "when": 1794570642659,
+      "tag": "0001_lock_down_data_api",
       "breakpoints": true
     }
   ]

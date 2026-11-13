@@ -1,6 +1,7 @@
 node_modules
 .next
-data/*.db*
+# Local embedded Postgres (PGlite)
+data/
 next-env.d.ts
 *.tsbuildinfo
 .env*

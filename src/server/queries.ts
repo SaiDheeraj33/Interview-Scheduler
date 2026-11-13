@@ -218,7 +218,7 @@ export async function getInterviewerSchedule(interviewerId: string, dayStart: nu
 
 export async function getInterviewerSlots(interviewerId: string, from: number, to: number) {
   return db
-    .select({ startsAt: slots.startsAt, booked: sql<number>`count(${bookings.id})`.mapWith(Boolean) })
+    .select({ startsAt: slots.startsAt, booked: sql<boolean>`count(${bookings.id}) > 0` })
     .from(slots)
     .leftJoin(bookings, and(eq(bookings.slotId, slots.id), eq(bookings.status, "scheduled")))
     .where(and(eq(slots.interviewerId, interviewerId), eq(slots.active, true), gte(slots.startsAt, from), lte(slots.startsAt, to)))

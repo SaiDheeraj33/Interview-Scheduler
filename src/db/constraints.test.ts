@@ -1,21 +1,30 @@
 /**
  * Proves the guarantee the feature rests on: even if application code is wrong
  * or two requests race, the database refuses a second live booking for the same
- * slot or the same candidacy. Runs against a throwaway SQLite file.
+ * slot or the same candidacy. Runs the real migrations against a throwaway
+ * in-memory Postgres (PGlite), so the SQL is exactly what production runs.
  */
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "./schema";
 
-const dir = mkdtempSync(path.join(tmpdir(), "grit-test-"));
-const client = createClient({ url: `file:${path.join(dir, "test.db")}` });
+const client = new PGlite();
 const db = drizzle(client, { schema });
+
+/** The Postgres error code behind a rejected query (drizzle wraps the driver error). */
+async function pgCode(query: Promise<unknown>): Promise<string | undefined> {
+  try {
+    await query;
+    return undefined;
+  } catch (err) {
+    let e = err as { code?: string; cause?: unknown } | undefined;
+    while (e && !e.code) e = e.cause as typeof e;
+    return e?.code;
+  }
+}
 
 const START = Date.UTC(2026, 10, 20, 5, 30);
 const booking = (id: string, candidacyId: string, slotId: string, studentId: string) => ({
@@ -50,14 +59,7 @@ beforeAll(async () => {
   ]);
 });
 
-afterAll(() => {
-  client.close();
-  try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-  } catch {
-    // Windows can keep the SQLite file locked briefly after close; the OS temp dir is cleaned up anyway.
-  }
-});
+afterAll(() => client.close());
 
 describe("database invariants", () => {
   it("lets exactly one of two racing students take a slot", async () => {
@@ -69,7 +71,8 @@ describe("database invariants", () => {
 
   it("refuses a second live booking for the same candidacy", async () => {
     const [winner] = await db.select().from(schema.bookings);
-    await expect(db.insert(schema.bookings).values(booking("k3", winner!.candidacyId, "slot2", winner!.studentId))).rejects.toThrow();
+    // 23505 is the code the booking action recognises as "that slot was just taken".
+    expect(await pgCode(db.insert(schema.bookings).values(booking("k3", winner!.candidacyId, "slot2", winner!.studentId)))).toBe("23505");
   });
 
   it("frees the slot once the booking is cancelled", async () => {
@@ -80,6 +83,13 @@ describe("database invariants", () => {
   });
 
   it("refuses two slots for one interviewer at the same time", async () => {
-    await expect(db.insert(schema.slots).values({ id: "dup", interviewerId: "int", startsAt: START, endsAt: START + 1_800_000, createdAt: START })).rejects.toThrow();
+    expect(await pgCode(db.insert(schema.slots).values({ id: "dup", interviewerId: "int", startsAt: START, endsAt: START + 1_800_000, createdAt: START }))).toBe("23505");
+  });
+
+  it("stores timestamps as timestamptz and reads them back as the same milliseconds", async () => {
+    const [slot] = await db.select().from(schema.slots).where(eq(schema.slots.id, "slot2"));
+    expect(slot!.startsAt).toBe(START + 1_800_000);
+    const { rows } = await client.query<{ t: string }>("select pg_typeof(starts_at)::text as t from slots limit 1");
+    expect(rows[0]!.t).toBe("timestamp with time zone");
   });
 });
