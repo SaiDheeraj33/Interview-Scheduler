@@ -3,7 +3,10 @@
 Prototype of the interview step for GRIT Track Badges: students book, interviewers set
 availability and record outcomes, and the interview team tracks who has and hasn't booked.
 
-Write-up (states, edge cases, data model, student messages): [docs/WRITEUP.md](docs/WRITEUP.md)
+**Live prototype:** https://interview-scheduler-navy-nine.vercel.app
+
+Write-up (states, edge cases, data model, what's next): [docs/WRITEUP.md](docs/WRITEUP.md),
+or the 2-page PDF [docs/GRIT-Interview-Scheduling-Writeup.pdf](docs/GRIT-Interview-Scheduling-Writeup.pdf)
 
 ## Run it
 
@@ -16,6 +19,8 @@ npm run dev        # creates and seeds the database on first run, then serves ht
 
 No database server is needed locally: without `DATABASE_URL` the app runs an embedded
 Postgres (PGlite) stored in `./data`. Stop the dev server before running `npm run db:seed`.
+If the local database ever fails to start (for example after the server was killed mid-write),
+delete `./data` and run `npm run db:seed`.
 
 Open the home page and choose a persona. Each student is in a different state of the journey.
 Demo times are relative to when the data was seeded; use **Reset demo data** on the home page
@@ -38,6 +43,7 @@ student's phone side by side, updating from the same database.
 | Screen | Path | Suggested persona |
 |---|---|---|
 | Student home: next step, countdown, result, messages | `/student` | Diya Reddy (booked), Rohan Verma (passed), Sneha Pillai (not cleared) |
+| Prep pack: the rubric in the student's words; on a retake, last feedback and focus areas | `/student` | Sneha Pillai (retake plan), Aarav Sharma (first attempt) |
 | Book or reschedule a slot; add to calendar (.ics) | `/student/book/[id]` | Aarav Sharma (eligible) |
 | Interviewer's day: timeline, up next, outcomes due | `/interviewer` | Priya Krishnan |
 | Interview room: student's record + rubric scorecard | `/interviewer/interview/[id]` | Priya Krishnan, from her schedule |
