@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Components use these semantic names only, never raw hex.
+ *
+ * Direction (UI/UX Pro Max, "premium editorial"): warm stone neutrals, a serif display
+ * face for the few big moments, Inter for everything a person has to read quickly,
+ * flat surfaces with hairline borders, and ONE accent per persona:
+ *   student      indigo  - learning, encouragement
+ *   interviewer  teal    - calm, focused
+ *   team lead    ink + gold - operational authority
+ * Text contrast is 4.5:1 or better on every surface; status is never colour alone.
+ */
+@theme {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), ui-serif, Georgia, serif;
+
+  --color-bg: #f7f6f3;
+  --color-surface: #ffffff;
+  --color-sunken: #f2f0eb;
+  --color-ink: #1c1917;
+  --color-muted: #57534e;
+  --color-faint: #78716c;
+  --color-line: #e7e4de;
+  --color-line-strong: #d6d3cd;
+
+  --color-primary: #4338ca;
+  --color-primary-strong: #3730a3;
+  --color-primary-soft: #eef0ff;
+  --color-on-primary: #ffffff;
+
+  --color-gold: #a16207;
+  --color-gold-soft: #fbf3e0;
+
+  --color-success: #15803d;
+  --color-success-soft: #e6f6ec;
+  --color-warning: #a14b06;
+  --color-warning-soft: #fdf1d7;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdeceb;
+  --color-info: #075985;
+  --color-info-soft: #e5f2fb;
+
+  /* Chart series (validated with the dataviz palette checker, light surface). */
+  --color-series-1: #3f5fa8;
+  --color-series-2: #c2852a;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 0 rgb(28 25 23 / 0.03), 0 1px 3px rgb(28 25 23 / 0.04), 0 12px 32px -20px rgb(28 25 23 / 0.18);
+  --shadow-float: 0 2px 6px rgb(28 25 23 / 0.06), 0 24px 48px -24px rgb(28 25 23 / 0.35);
+
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade: fade 300ms ease-out both;
+  --animate-medal: medal 900ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  --animate-shine: shine 2.6s ease-in-out 900ms 1 both;
+  --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+}
+
+/* Persona accents: the same components, re-tinted by one attribute on the page wrapper. */
+[data-persona="student"] {
+  --color-primary: #4338ca;
+  --color-primary-strong: #3730a3;
+  --color-primary-soft: #eef0ff;
+}
+[data-persona="interviewer"] {
+  --color-primary: #0f766e;
+  --color-primary-strong: #115e59;
+  --color-primary-soft: #e3f3f0;
+}
+[data-persona="admin"],
+[data-persona="guest"] {
+  --color-primary: #1c1917;
+  --color-primary-strong: #000000;
+  --color-primary-soft: #f2f0eb;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes medal {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06) rotate(3deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes shine {
+  from {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-20deg);
+  }
+}
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+html {
+  color-scheme: light;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.font-display {
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+button,
+a,
+summary,
+label:has(input),
+[role="button"] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+dialog::backdrop {
+  background: rgb(28 25 23 / 0.4);
+  backdrop-filter: blur(2px);
+}
+dialog[open] {
+  animation: var(--animate-rise);
+}
+
+input[type="range"] {
+  accent-color: var(--color-primary);
+}
+
+/* Fine dotted texture for empty areas of the calendar and the persona doors. */
+.bg-dots {
+  background-image: radial-gradient(rgb(28 25 23 / 0.08) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
